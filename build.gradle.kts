@@ -21,6 +21,8 @@ dependencies {
     implementation("dev.kord:kord-core:0.11.1")
     implementation("com.google.code.gson:gson:2.7")
     implementation("org.slf4j:slf4j-simple:2.0.9")
+
+    implementation("mysql:mysql-connector-java:5.1.16")
 }
 
 tasks.test {

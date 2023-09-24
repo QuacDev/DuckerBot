@@ -2,38 +2,43 @@ import com.google.gson.Gson
 import command.Command
 import command.CommandManager
 import command.commands.Ping
+import command.commands.Point
+import dev.kord.common.entity.Snowflake
 import dev.kord.core.Kord
+import dev.kord.core.event.interaction.GuildChatInputCommandInteractionCreateEvent
 import dev.kord.core.event.message.MessageCreateEvent
 import dev.kord.core.on
 import dev.kord.gateway.Intent
 import dev.kord.gateway.PrivilegedIntent
+import java.sql.Connection
+import java.sql.DriverManager
 import java.time.Instant
-import java.util.*
 
-val config = Gson().fromJson(object {}.javaClass.getResource("config.json").readText(), Config.Config::class.java)
-val commandManager: CommandManager = CommandManager()
+object Main {
+    val config = Gson().fromJson(object {}.javaClass.getResource("config.json").readText(), Config.Config::class.java)
+    val databaseUrl = "jdbc:mysql://${config.dbHostname}:${config.dbPort}/${config.db}?characterEncoding=utf8"
+    var connection: Connection? = null
+}
 
 suspend fun main(args: Array<String>) {
-    val bot = Kord(config.token)
+    val bot = Kord(Main.config.token)
 
-    commandManager.registerCommand(Ping())
+    CommandManager.registerCommand(Ping(), bot)
+    CommandManager.registerCommand(Point(), bot)
 
-    bot.on<MessageCreateEvent> {
-        if(message.author?.isBot == true) return@on
-        if(!message.content.startsWith(config.prefix)) return@on
+    bot.on<GuildChatInputCommandInteractionCreateEvent> {
+        val command: Command = CommandManager.getCommand(interaction.command.rootName) ?: return@on
 
-        val contentNP = message.content.replaceFirst(config.prefix, "")
-        val commandNameEndIndex: Int = if (contentNP.contains(" ")) contentNP.indexOf(" ") else contentNP.length
-        val commandName = contentNP.substring(0, commandNameEndIndex).lowercase()
-
-        println("Command '$commandName' has been ran by user ${message.getAuthorAsMember().id}")
-
-        val command: Command = commandManager.getCommand(commandName) ?: return@on
         command.handle(this, bot)
     }
 
     bot.login {
         @OptIn(PrivilegedIntent::class)
         intents += Intent.MessageContent
+
+        println("Bot logged in at: ${Instant.now()}")
+
+         Main.connection = DriverManager.getConnection(Main.databaseUrl, Main.config.dbUsername, Main.config.dbPassword)
+        if(Main.connection != null) println("Connected to the database '${Main.config.db}'")
     }
 }

@@ -1,14 +1,16 @@
 package command
 
+import dev.kord.core.Kord
+import dev.kord.rest.builder.interaction.GlobalChatInputCreateBuilder
+import dev.kord.rest.builder.interaction.integer
 import java.util.*
 import kotlin.collections.ArrayList
 
-class CommandManager {
+object CommandManager {
     private val commands: ArrayList<Command> = ArrayList()
 
-    fun registerCommand(command: Command) {
+    suspend fun registerCommand(command: Command, bot: Kord) {
         var hasConflictingNames = false
-        var hasConflictingAliases = false;
 
         if(commands.isNotEmpty()) {
             commands.forEach { registeredCommand: Command ->
@@ -16,24 +18,21 @@ class CommandManager {
                     println("Command name '${command.name}' has a conflict!")
                     hasConflictingNames = true;
                 }
-
-                registeredCommand.aliases.forEach { registeredAlias: String ->
-                    command.aliases.forEach { newAlias: String ->
-                        if(newAlias.equals(registeredAlias, ignoreCase = true)) {
-                            println("The alias '$newAlias' from command '${command.name}' has a conflict with the alias from command '${registeredCommand.name}'")
-                            hasConflictingAliases = true;
-                        }
-                    }
-                }
             }
         }
 
-        if(hasConflictingAliases || hasConflictingNames) {
+        if(hasConflictingNames) {
             println("Couldn't register command '${command.name}' due to conflicts!")
             return
         }
 
         commands.add(command)
+        bot.createGlobalChatInputCommand (
+            command.name, command.description, command.builder
+        )
+
+        println("Registered command '${command.name}'")
+        println("Now registered ${commands.size} commands")
     }
 
     fun getCommand(commandName: String) : Command? {
@@ -43,7 +42,7 @@ class CommandManager {
         }
 
         commands.forEach { command: Command ->
-            if(command.name.equals(commandName, ignoreCase = true) || command.aliases.contains(commandName.lowercase())) {
+            if(command.name.equals(commandName, ignoreCase = true)) {
                 return command
             }
         }
