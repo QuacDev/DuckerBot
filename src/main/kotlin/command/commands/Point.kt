@@ -31,20 +31,23 @@ class Point : Command(
     override suspend fun handle(e: GuildChatInputCommandInteractionCreateEvent, bot: Kord) {
         super.handle(e, bot)
 
-        if(Main.connection == null) return
-
         val user = e.interaction.command.users["user"]!!
         val points = e.interaction.command.integers["points"]!!.toInt()
         val reason = e.interaction.command.strings["reason"]!!
         val private = e.interaction.command.booleans["private"]
+
+        val response = if(private == true) e.interaction.deferEphemeralResponseUnsafe() else e.interaction.deferPublicResponseUnsafe()
+
+        if(Main.connection == null) {
+            response.edit { content = "Database error!" }
+            return
+        }
 
         val userData = DatabaseUtils.getUser(user.id.value.toLong())
 
         userData.points += points
 
         DatabaseUtils.saveUser(userData)
-
-        val response = if(private == true) e.interaction.deferEphemeralResponseUnsafe() else e.interaction.deferPublicResponseUnsafe()
 
         val embed = EmbedBuilder()
         embed.author = EmbedBuilder.Author().apply {
